@@ -1,6 +1,6 @@
 ### Sherlock
 
-Sherlock is meant to a be a proof of concept project that showcases the possibilites of libpcap in conjunction with [miekg/dns] and [google/gopacket].
+Sherlock is meant to a be a proof of concept project that showcases the possibilites of libpcap in conjunction with [miekg/dns](https://github.com/miekg/dns) and [google/gopacket](https://github.com/google/gopacket).
 
 Sherlock is able to capture live DNS traffic on a specified interface, port & protocol and then save the questions & answers into json & bin files.
 

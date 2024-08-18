@@ -51,10 +51,6 @@ func main() {
 }
 
 func handlePacket(packet gopacket.Packet, questions chan *DnsMetadata, answers chan *DnsMetadata) {
-	// fmt.Printf("----------------------------\n")
-	// defer func() {
-	// 	fmt.Printf("----------------------------\n\n")
-	// }()
 	udpLayer := packet.Layer(layers.LayerTypeUDP)
 	if udpLayer == nil {
 		return
@@ -99,23 +95,12 @@ func handlePacket(packet gopacket.Packet, questions chan *DnsMetadata, answers c
 
 	// DNS Answer
 	if hasAnswer {
-		// fmt.Println("[DNS ANSWERS]")
-		// j, err := json.MarshalIndent(msg, "", "    ")
-		// if err != nil {
-		// 	fmt.Println("err:", err)
-		// 	return
-		// }
-		// fmt.Println(string(j))
-		// for _, a := range msg.Answer {
-		// 	fmt.Printf("\t%v\n", a.String())
-		// }
 		answers <- &DnsMetadata{port: int(udp.DstPort), msg: *msg, srcIP: net.SrcIP.String(), dstIP: net.DstIP.String()}
 		return
 	}
 
+	// DNS Question
 	if hasQuestion {
-		// fmt.Println("[DNS QUESTION]")
-		// fmt.Printf("\t%v\n", msg.Question[0].String())
 		questions <- &DnsMetadata{port: int(udp.SrcPort), msg: *msg, srcIP: net.SrcIP.String(), dstIP: net.DstIP.String()}
 	}
 
@@ -124,7 +109,7 @@ func handlePacket(packet gopacket.Packet, questions chan *DnsMetadata, answers c
 func processQuestions(questions <-chan *DnsMetadata) {
 	for {
 		q := <-questions
-		msgId := getMsgId("QUESTION", q.port, q.msg.Question[0].Name, dns.TypeToString[q.msg.Question[0].Qtype], q.srcIP)
+		msgId := getMsgId(q)
 		fmt.Printf("Processing Question with msg ID [%v]\n", msgId)
 		err := saveToFile(msgId, q.msg)
 		if err != nil {
@@ -139,7 +124,7 @@ func processAnswers(answers <-chan *DnsMetadata) {
 		a := <-answers
 		// fmt.Println("Hey look an Answer arrived!")
 		// fmt.Printf("%+v\n", a)
-		msgId := getMsgId("ANSWER", a.port, a.msg.Question[0].Name, dns.TypeToString[a.msg.Question[0].Qtype], a.dstIP)
+		msgId := getMsgId(a)
 		fmt.Printf("Processing Answer with msg ID [%v]\n", msgId)
 		err := saveToFile(msgId, a.msg)
 		if err != nil {
@@ -148,11 +133,20 @@ func processAnswers(answers <-chan *DnsMetadata) {
 	}
 }
 
-func getMsgId(questionOrAnswer string, port int, qName string, qTypeStr string, srcIP string) string {
-	return fmt.Sprintf("%v_%v_%v_%v_%v_%v",
+func getMsgId(dmd *DnsMetadata) string {
+	questionOrAnswer := "QUESTION"
+	ip := dmd.srcIP
+	if dmd.msg.Response {
+		questionOrAnswer = "ANSWER"
+		ip = dmd.dstIP
+	}
+	qTypeStr := dns.TypeToString[dmd.msg.Question[0].Qtype]
+	qName := dmd.msg.Question[0].Name
+	return fmt.Sprintf("%v_%v_%v_%v_%v_%v_%v",
 		questionOrAnswer,
-		srcIP,
-		strconv.Itoa(port),
+		ip,
+		"msgid-"+strconv.FormatUint(uint64(dmd.msg.Id), 10),
+		"port-"+strconv.Itoa(dmd.port),
 		qTypeStr,
 		qName[:len(qName)-1],
 		strconv.FormatInt(time.Now().UTC().Unix(), 10))

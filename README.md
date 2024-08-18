@@ -97,3 +97,9 @@ $ cat ANSWER_127.0.0.1_60038_A_cat.com_1723941648.json | jq .
   "Extra": null
 }
 ```
+
+-----------
+
+## Looking inside the message binary
+
+

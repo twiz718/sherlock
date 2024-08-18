@@ -1,4 +1,4 @@
-### Sherlock
+## What is Sherlock?
 
 Sherlock is meant to a be a proof of concept project that showcases the possibilites of libpcap in conjunction with [miekg/dns](https://github.com/miekg/dns) and [google/gopacket](https://github.com/google/gopacket).
 
@@ -98,8 +98,118 @@ $ cat ANSWER_127.0.0.1_60038_A_cat.com_1723941648.json | jq .
 }
 ```
 
------------
+---
 
 ## Looking inside the message binary
 
+As per the [rfc1035](https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1), the message format is as follows:
 
+```
+The header contains the following fields:
+
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      ID                       |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    QDCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ANCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    NSCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ARCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+where:
+
+ID              A 16 bit identifier assigned by the program that
+                generates any kind of query.  This identifier is copied
+                the corresponding reply and can be used by the requester
+                to match up replies to outstanding queries.
+
+---
+
+The question section is used to carry the "question" in most queries,
+i.e., the parameters that define what is being asked.  The section
+contains QDCOUNT (usually 1) entries, each of the following format:
+
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                                               |
+    /                     QNAME                     /
+    /                                               /
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     QTYPE                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     QCLASS                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+```
+
+Here is an example of an `A` request for `slow.com`:
+
+```
+xxd -u -g1 QUESTION_127.0.0.1_msgid-60311_port-41685_A_slow.com_1723999423.bin
+00000000: EB 97 01 00 00 01 00 00 00 00 00 00 04 73 6C 6F  .............slo
+00000010: 77 03 63 6F 6D 00 00 01 00 01                    w.com.....
+```
+
+Since we know the `msg id` is the first `16` bits of the data, we can figure out it's value from the above hex output via `xxd`.
+
+Since each byte contains 8 bits, we need the first two bytes only. Let's retrieve them:
+
+```
+xxd -p -u -l 2 QUESTION_127.0.0.1_msgid-60311_port-41685_A_slow.com_1723999423.bin
+EB97
+```
+
+Now we can convert them to decimal to retrieve our `msg id`. `EB97` (hex) -> `60311` (decimal)
+One-liner:
+```
+echo $((0x$(xxd -p -u -l 2 QUESTION_127.0.0.1_msgid-60311_port-41685_A_slow.com_1723999423.bin)))
+60311
+```
+
+or via `bc`:
+
+```
+echo "ibase=16; EB97" | bc
+60311
+```
+
+Let's confirming via our JSON file for the same question:
+```
+cat QUESTION_127.0.0.1_msgid-60311_port-41685_A_slow.com_1723999423.json|jq .
+{
+  "Id": 60311,
+  "Response": false,
+  "Opcode": 0,
+  "Authoritative": false,
+  "Truncated": false,
+  "RecursionDesired": true,
+  "RecursionAvailable": false,
+  "Zero": false,
+  "AuthenticatedData": false,
+  "CheckingDisabled": false,
+  "Rcode": 0,
+  "Question": [
+    {
+      "Name": "slow.com.",
+      "Qtype": 1,
+      "Qclass": 1
+    }
+  ],
+  "Answer": null,
+  "Ns": null,
+  "Extra": null
+}
+```
+
+The confirmation:
+```
+cat QUESTION_127.0.0.1_msgid-60311_port-41685_A_slow.com_1723999423.json |jq .Id
+60311
+```

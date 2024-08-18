@@ -31,5 +31,8 @@ jobs:
     - name: Test
       run: go test -v ./...
 
+    - name: GitTools
+      uses: GitTools/actions@v3.0.0
+            
     - name: GH Release
       uses: softprops/action-gh-release@v2.0.8

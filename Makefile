@@ -1,5 +1,5 @@
 build:
-	CGO_ENABLED=1 go build -ldflags="-extldflags=-static" -o sherlock main.go
+	CGO_ENABLED=1 go build -o sherlock main.go
 
 clean:
 	rm -f *.bin *.json

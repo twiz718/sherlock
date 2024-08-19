@@ -38,11 +38,11 @@ func main() {
 	} else if err := handle.SetBPFFilter(fmt.Sprintf("%v and port %v", *proto, *port)); err != nil {
 		panic(err)
 	} else {
-		questionsChan := make(chan *DnsMetadata, 100)
-		answersChan := make(chan *DnsMetadata, 100)
+		questionsChan := make(chan *DnsMetadata, 1000)
+		answersChan := make(chan *DnsMetadata, 1000)
 		go processQuestions(questionsChan)
 		go processAnswers(answersChan)
-		fmt.Printf("Live capturing on INTERFACE [%v] PROTOCOL [%v] PORT[%v]\n", *iface, *proto, *port)
+		fmt.Printf("Live capturing on INTERFACE [%v] PROTOCOL [%v] PORT [%v]\n", *iface, *proto, *port)
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 		for packet := range packetSource.Packets() {
 			handlePacket(packet, questionsChan, answersChan)
